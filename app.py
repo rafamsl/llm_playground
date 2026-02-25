@@ -54,17 +54,23 @@ for i, prompt in enumerate(st.session_state.prompts):
                 label_visibility="collapsed",
                 placeholder="e.g. Summarize this message: {message}",
             )
-            # Column chips — click to append {variable} to this prompt
+            # Add placeholder
             all_vars = columns + [
                 p["output_name"] for j, p in enumerate(st.session_state.prompts) if j < i
             ]
             if all_vars:
-                chip_cols = st.columns(len(all_vars))
-                for j, var in enumerate(all_vars):
-                    with chip_cols[j]:
-                        if st.button(f"{{{var}}}", key=f"chip_{i}_{j}", use_container_width=True):
-                            st.session_state.prompts[i]["template"] += f"{{{var}}}"
-                            st.rerun()
+                ph_col, btn_col = st.columns([3, 1])
+                with ph_col:
+                    selected_var = st.selectbox(
+                        "placeholder",
+                        options=all_vars,
+                        key=f"selectbox_{i}",
+                        label_visibility="collapsed",
+                    )
+                with btn_col:
+                    if st.button("+ Add placeholder", key=f"chip_{i}", use_container_width=True):
+                        st.session_state.prompts[i]["template"] += f"{{{selected_var}}}"
+                        st.rerun()
         with col_name:
             st.session_state.prompts[i]["output_name"] = st.text_input(
                 "Output column",
