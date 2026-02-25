@@ -13,6 +13,7 @@ MODEL = "gpt-4o-mini"
 
 st.set_page_config(page_title="LLM Playground", layout="wide")
 st.title("LLM Playground")
+st.caption("Test AI prompts against a real dataset — no engineering required. Upload your data, define what you want the AI to do, and see results in seconds.")
 
 # ── Session state init ────────────────────────────────────────────────────────
 if "prompts" not in st.session_state:
@@ -22,6 +23,7 @@ if "result_df" not in st.session_state:
 
 # ── Section 1: Dataset ────────────────────────────────────────────────────────
 st.header("1. Dataset")
+st.caption("Upload the CSV you want to run the AI against. Each row will be processed individually. The column names will be available as variables in your prompts.")
 uploaded = st.file_uploader("Upload CSV", type="csv")
 
 df = None
@@ -33,6 +35,7 @@ if uploaded:
 
 # ── Section 2: Prompt Chain ───────────────────────────────────────────────────
 st.header("2. Prompt Chain")
+st.caption("Write one or more prompts to run in sequence. Use `{column_name}` to inject values from your dataset. Each prompt's output becomes a variable you can reference in the next prompt — perfect for multi-step reasoning.")
 
 if columns:
     st.caption(f"Available columns: {', '.join(f'`{{{c}}}`' for c in columns)}")
@@ -68,6 +71,7 @@ if st.button("+ Add Prompt"):
 
 # ── Section 3: Run ────────────────────────────────────────────────────────────
 st.header("3. Run")
+st.caption("When you're ready, hit Run. The AI will process every row and add a new column for each prompt output. If an output is structured JSON, it will be automatically split into separate columns.")
 
 if df is not None and st.session_state.prompts:
     if st.button("Run", type="primary"):
