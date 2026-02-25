@@ -1,13 +1,15 @@
-import io
+import json
 import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from llm_engine import run_dataset
+from llm_engine import run_row
 
 load_dotenv()
 client = OpenAI()
+
+MODEL = "gpt-4o-mini"
 
 st.set_page_config(page_title="LLM Playground", layout="wide")
 st.title("LLM Playground")
@@ -18,17 +20,24 @@ if "prompts" not in st.session_state:
 if "result_df" not in st.session_state:
     st.session_state.result_df = None
 
-# ── Section 1: Task Setup ─────────────────────────────────────────────────────
-st.header("1. Task Setup")
-col1, col2 = st.columns([3, 1])
-with col1:
-    task_name = st.text_input("Task name", placeholder="e.g. Message classification")
-with col2:
-    model = st.text_input("Model", value="gpt-4o-mini")
+# ── Section 1: Dataset ────────────────────────────────────────────────────────
+st.header("1. Dataset")
+uploaded = st.file_uploader("Upload CSV", type="csv")
 
-# ── Section 2: Prompt Builder ─────────────────────────────────────────────────
+df = None
+columns = []
+if uploaded:
+    df = pd.read_csv(uploaded)
+    columns = list(df.columns)
+    st.dataframe(df.head(), use_container_width=True)
+
+# ── Section 2: Prompt Chain ───────────────────────────────────────────────────
 st.header("2. Prompt Chain")
-st.caption("Use `{column_name}` to reference CSV columns or previous prompt outputs.")
+
+if columns:
+    st.caption(f"Available columns: {', '.join(f'`{{{c}}}`' for c in columns)}")
+else:
+    st.caption("Upload a CSV above to see available column names.")
 
 for i, prompt in enumerate(st.session_state.prompts):
     with st.expander(f"Prompt {i + 1} → `{prompt['output_name']}`", expanded=True):
@@ -57,15 +66,8 @@ if st.button("+ Add Prompt"):
     st.session_state.prompts.append({"template": "", "output_name": f"output_{n + 1}"})
     st.rerun()
 
-# ── Section 3: Upload & Run ───────────────────────────────────────────────────
-st.header("3. Dataset")
-uploaded = st.file_uploader("Upload CSV", type="csv")
-
-df = None
-if uploaded:
-    df = pd.read_csv(uploaded)
-    st.subheader("Preview")
-    st.dataframe(df.head(), use_container_width=True)
+# ── Section 3: Run ────────────────────────────────────────────────────────────
+st.header("3. Run")
 
 if df is not None and st.session_state.prompts:
     if st.button("Run", type="primary"):
@@ -74,13 +76,10 @@ if df is not None and st.session_state.prompts:
         output_names = [p["output_name"] for p in st.session_state.prompts]
         total = len(df)
 
-        from llm_engine import run_row
-        import json
-
         for idx, row in enumerate(df.itertuples(index=False)):
             row_dict = row._asdict()
             try:
-                result = run_row(row_dict, st.session_state.prompts, client, model)
+                result = run_row(row_dict, st.session_state.prompts, client, MODEL)
             except Exception as e:
                 result = dict(row_dict)
                 for name in output_names:
@@ -123,7 +122,9 @@ if df is not None and st.session_state.prompts:
         st.session_state.result_df = result_df
         progress.empty()
 
-elif df is not None and not st.session_state.prompts:
+elif df is None:
+    st.info("Upload a CSV to get started.")
+elif not st.session_state.prompts:
     st.info("Add at least one prompt to run.")
 
 # ── Results ───────────────────────────────────────────────────────────────────
@@ -132,10 +133,9 @@ if st.session_state.result_df is not None:
     st.dataframe(st.session_state.result_df, use_container_width=True)
 
     csv_bytes = st.session_state.result_df.to_csv(index=False).encode("utf-8")
-    filename = f"{task_name or 'results'}.csv"
     st.download_button(
         label="Download CSV",
         data=csv_bytes,
-        file_name=filename,
+        file_name="results.csv",
         mime="text/csv",
     )
