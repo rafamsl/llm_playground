@@ -43,17 +43,24 @@ else:
     st.caption("Upload a CSV above to see available column names.")
 
 for i, prompt in enumerate(st.session_state.prompts):
+    # Seed the textarea key from prompts list (only on first render)
+    tkey = f"template_{i}"
+    if tkey not in st.session_state:
+        st.session_state[tkey] = prompt["template"]
+
     with st.expander(f"Prompt {i + 1} → `{prompt['output_name']}`", expanded=True):
         col_tmpl, col_name = st.columns([4, 1])
         with col_tmpl:
-            st.session_state.prompts[i]["template"] = st.text_area(
+            st.text_area(
                 "Template",
-                value=prompt["template"],
-                key=f"template_{i}",
+                key=tkey,
                 height=120,
                 label_visibility="collapsed",
                 placeholder="e.g. Summarize this message: {message}",
             )
+            # Sync widget value back to prompts list
+            st.session_state.prompts[i]["template"] = st.session_state[tkey]
+
             # Add placeholder
             all_vars = columns + [
                 p["output_name"] for j, p in enumerate(st.session_state.prompts) if j < i
@@ -69,7 +76,7 @@ for i, prompt in enumerate(st.session_state.prompts):
                     )
                 with btn_col:
                     if st.button("+ Add placeholder", key=f"chip_{i}", use_container_width=True):
-                        st.session_state.prompts[i]["template"] += f"{{{selected_var}}}"
+                        st.session_state[tkey] += f"{{{selected_var}}}"
                         st.rerun()
         with col_name:
             st.session_state.prompts[i]["output_name"] = st.text_input(
